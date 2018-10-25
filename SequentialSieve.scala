@@ -3,7 +3,7 @@
 object SequentialSieve{
 
   def main(args: Array[String]) = {
-    assert(args.length == 1, "must have one argument")
+    assert(args.length == 1, "Must have one argument")
     val t0 = java.lang.System.currentTimeMillis()
 
     val N = args(0).toInt // number of primes required
