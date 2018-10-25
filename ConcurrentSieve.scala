@@ -1,6 +1,6 @@
 /** A sequential implementation of the Sieve of Eratosthenes */
 
-object Sieve{
+object ConcurrentSieve{
 
   def main(args: Array[String]) = {
     assert(args.length == 1, "must have one argument")
@@ -16,17 +16,18 @@ object Sieve{
       // Test if next is prime; 
       // invariant: next is coprime with primes[0..i) && p = primes(i)
       var i = 0; var p = primes(i)
-      while(p*p<=next && next%p != 0){ i += 1; p = primes(i) }
+      while(p*p<=next && next%p != 0){
+        i += 1;
+        p = primes(i)
+      }
       if(p*p>next){ // next is prime
-	primes(nextSlot) = next; nextSlot += 1
-	// println(next)
+	      primes(nextSlot) = next; nextSlot += 1
       }
       next += 1
     }
 
     println(primes(N-1))
     println("Time taken: "+(java.lang.System.currentTimeMillis()-t0))
-    // About 2.7 secs for N = 1,000,000; answer: 15,485,863
   }
 }
 
