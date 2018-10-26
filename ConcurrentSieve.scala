@@ -31,28 +31,33 @@ object ConcurrentSieve{
       // Test integers until all integers under N have been tested
       while(nextSlot.get<N) {
         // Get the next integer to test for primality
-        var candidate = next.getAndIncrement
+        var candidate = 0
+        do {
+          candidate = next.get
+          // Update the current array with this thread's current prime candidate
+          current.set(me, candidate)
+        } while (!next.compareAndSet(candidate, candidate + 1))
         // Convert the candidate to a long to prevent overflow when squaring
         var l_candidate = candidate.toLong
-        // Update the current array with this thread's current prime candidate
-        current.set(me, candidate)
 
         // Wait until primes below sqrt(candidate) being tested are released
         var thread = 0
         while (thread < T) {
+          println("cd " + candidate.toString + " square " + squareLong(current.get(thread)).toString)
           while (squareLong(current.get(thread)) < l_candidate) {}
           thread += 1
         }
+        println("Testing " + candidate.toString)
 
         // Test if candidate is prime
         // invariant: candidate is coprime with primes[0..i) && p = primes(i)
         var i = 0; var p = primes.get(i)
-        println(p)
-        while(p*p<=candidate && candidate%p != 0){
-          i += 1;
+        println("Using prime " + p.toString + " to test candidate " + candidate.toString)
+        while(p != 0 && p*p<=candidate && candidate%p != 0){
+          i += 1; 
           p = primes.get(i)
+        println("Using prime " + p.toString + " to test candidate " + candidate.toString)
         }
-        println("Testing " + candidate.toString)
         if(p*p>candidate){ // candidate is prime
           println("Found prime " + candidate.toString)
           // Get the next available slot
