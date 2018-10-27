@@ -4,7 +4,7 @@ import ox.cads.util.ThreadUtil
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicIntegerArray
 
-object ConcurrentSieve{
+object FasterConcurrentSieve{
 
   def squareLong(n: Int): Long = {
     val l_n = n.toLong
@@ -26,6 +26,13 @@ object ConcurrentSieve{
 
     // The function that each thread runs, taking it's own id as a parameter
     def comp(me: Int) {
+      // Local cached copy of the primes array
+      val maxPrimesIndex = scala.math.ceil(scala.math.sqrt(N + T - 1)).toInt
+      println("Max primes index: " + maxPrimesIndex.toString)
+      val localPrimes = new Array[Int](maxPrimesIndex)
+      localPrimes(0) = 2
+      // The location where the local primes array no longer matches primes
+      var localPrimesIndex = 1
       // Test integers until all integers under N have been tested
       while(nextSlot.get<N) {
         // Get the next integer to test for primality
@@ -45,12 +52,25 @@ object ConcurrentSieve{
           thread += 1
         }
 
+        // Copy primes into local cache when some candidates may be missing
+        if (localPrimesIndex + 1 != maxPrimesIndex && squareLong(localPrimes(localPrimesIndex - 1)) < l_candidate) {
+          // Get the index of the last value in the array
+          val upTo = scala.math.min(nextSlot.get - 1, maxPrimesIndex - 1)
+          // From the current cache index to the last value in primes
+          for (index <- localPrimesIndex to upTo) {
+            // Copy the value from primes to the local cache
+            localPrimes(index) = primes.get(index)
+          }
+          // Update the next available index in the local cache of primes
+          localPrimesIndex = scala.math.max(upTo, localPrimesIndex)
+        }
+
         // Test if candidate is prime
         // invariant: candidate is coprime with primes[0..i) && p = primes(i)
-        var i = 0; var p = primes.get(i)
-        while(p != 0 && p*p<=candidate && candidate%p != 0){
+        var i = 0; var p = localPrimes(i)
+        while(p != 0 && i < maxPrimesIndex && p*p<=candidate && candidate%p != 0){
           i += 1; 
-          p = primes.get(i)
+          p = localPrimes(i)
         }
         if(p == 0 || p*p>candidate){ // candidate is prime
           // Get the next available slot
