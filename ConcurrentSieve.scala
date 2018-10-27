@@ -41,7 +41,7 @@ object ConcurrentSieve{
         // Wait until primes below sqrt(candidate) being tested are released
         var thread = 0
         while (thread < T) {
-          while (squareLong(current.get(thread)) < l_candidate) {}
+          while (squareLong(current.get(thread)) <= l_candidate) {}
           thread += 1
         }
 
@@ -85,6 +85,9 @@ object ConcurrentSieve{
     // Run T threads of comp concurrently, giving each a uid between 0 and T
     ThreadUtil.runIndexedSystem(T, comp)
 
+    print("Primes: ")
+    for (index <- 0 to N + T - 2) print(primes.get(index) + " ")
+    println(".")
     println(primes.get(N-1))
     println("Time taken: "+(java.lang.System.currentTimeMillis()-t0))
   }
