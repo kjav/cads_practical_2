@@ -56,9 +56,9 @@ object ConcurrentSieve{
         while(p != 0 && p*p<=candidate && candidate%p != 0){
           i += 1; 
           p = primes.get(i)
-        println("Using prime " + p.toString + " to test candidate " + candidate.toString)
+          println("Using prime " + p.toString + " to test candidate " + candidate.toString)
         }
-        if(p*p>candidate){ // candidate is prime
+        if(p == 0 || p*p>candidate){ // candidate is prime
           println("Found prime " + candidate.toString)
           // Get the next available slot
           // A local copy of the nextSlot atomic integer
@@ -90,7 +90,7 @@ object ConcurrentSieve{
     }
 
     // Run T threads of comp concurrently, giving each a uid between 0 and T
-    ThreadUtil.runIndexedSystem(T, comp)    
+    ThreadUtil.runIndexedSystem(T, comp)
               println("Primes: ")
               for (n <- 0 to (N + T - 2)) print(primes.get(n).toString + ", ")
               println(".")
