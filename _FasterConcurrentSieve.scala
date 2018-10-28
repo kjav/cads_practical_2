@@ -5,16 +5,22 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicIntegerArray
 import scala.math.log
 
-object FasterConcurrentSieve{
+object _FasterConcurrentSieve{
 
   def squareLong(n: Int): Long = {
     val l_n = n.toLong
     l_n * l_n
   }
 
-  def primeUpperBound(n: Int): Int = {
+  def primeUpperBound(n: Int): Double = {
     assert(n > 15985)
-    scala.math.ceil(n * (log(n) + log(log(n)) - 0.9427)).toInt
+    val logn = log(n)
+    n * (logn + log(logn) - 0.9427)
+  }
+
+  def pi(n: Double): Double = {
+    val logn = log(n)
+    (1 + 1.2762 / logn) * n / logn
   }
 
   def main(args: Array[String]) = {
@@ -26,30 +32,24 @@ object FasterConcurrentSieve{
     val primes = new AtomicIntegerArray(N + T - 1) // will hold the primes
     // Holds the prime candidate each thread is currently testing
     val current = new AtomicIntegerArray(T)
-    // Holds the final prime each thread finds, if any
-    val finalPrimes = new AtomicIntegerArray(T)
     primes.set(0, 2)
     var nextSlot = new AtomicInteger(1) // next free slot in primes
     var next = new AtomicInteger(3) // next candidate prime to consider
 
     // The function that each thread runs, taking it's own id as a parameter
     def comp(me: Int) {
-      // Get the maximum amount of primes we will need to store to test the
-      // proceeding primes
-      val maxPrimesIndex = scala.math.ceil(
-        scala.math.sqrt(primeUpperBound(N + T - 1))
-      ).toInt
-      println("Max primes index: " + maxPrimesIndex.toString)
       // Local cached copy of the primes array
+      val maxPrimesIndex = 500//scala.math.ceil(pi(scala.math.sqrt(primeUpperBound(N + T - 1)))).toInt
+      println("Max primes index: " + maxPrimesIndex.toString)
+      println("Previous max primes index: " + (scala.math.sqrt(N + T - 1)).toString)
       val localPrimes = new Array[Int](maxPrimesIndex)
       localPrimes(0) = 2
       // The location where the local primes array no longer matches primes
       var localPrimesIndex = 1
-      // The current integer that this thread is testing for primality
-      var candidate = 0
       // Test integers until all integers under N have been tested
       while(nextSlot.get<N) {
         // Get the next integer to test for primality
+        var candidate = 0
         do {
           candidate = next.get
           // Update the current array with this thread's current prime candidate
@@ -61,12 +61,19 @@ object FasterConcurrentSieve{
         // Wait until primes below sqrt(candidate) being tested are released
         var thread = 0
         while (thread < T) {
-          while (squareLong(current.get(thread)) < l_candidate) {}
+          while (squareLong(current.get(thread)) <= l_candidate) {}
           thread += 1
         }
 
         // Copy primes into local cache when some candidates may be missing
-        if (localPrimesIndex + 1 != maxPrimesIndex && squareLong(localPrimes(localPrimesIndex - 1)) < l_candidate) {
+        if (localPrimesIndex + 1 != maxPrimesIndex && squareLong(localPrimes(localPrimesIndex - 1)) <= l_candidate) {
+
+          // Wait until primes below candidate being tested are released
+          var thread = 0
+          while (thread < T) {
+            while (current.get(thread) < candidate) {}
+            thread += 1
+          }
           // Get the index of the last value in the array
           val upTo = scala.math.min(nextSlot.get - 1, maxPrimesIndex - 1)
           // From the current cache index to the last value in primes
@@ -81,43 +88,36 @@ object FasterConcurrentSieve{
         // Test if candidate is prime
         // invariant: candidate is coprime with primes[0..i) && p = primes(i)
         var i = 0; var p = localPrimes(i)
-        while(p != 0 && i < maxPrimesIndex && p*p<=candidate && candidate%p != 0){
+        while(p != 0 && i + 1 < maxPrimesIndex && p*p<=candidate && candidate%p != 0){
           i += 1; 
           p = localPrimes(i)
         }
         if(p == 0 || p*p>candidate){ // candidate is prime
-          // Only write this prime in the array if it can be 
-          if (localPrimesIndex + 1 != maxPrimesIndex) {
-            // Get the next available slot
-            // A local copy of the nextSlot atomic integer
-            var candidateSlot = nextSlot.get
-            // Represents the position of p in the sorted array
-            var pos = candidateSlot
-            // Represents the maximum value of the array
-            var max_prime = scala.math.max(candidate, primes.get(candidateSlot - 1))
-            do {
-              candidateSlot = nextSlot.get
-              // Test where the prime candidate should go in the sorted array
-              pos = candidateSlot
-              while (primes.get(pos - 1) > candidate) {
-                // The prime is smaller than the prime at position (pos - 1), so
-                // p appears further back in the array
-                pos -= 1
-              }
-            } while (!primes.compareAndSet(candidateSlot, 0, max_prime))
-            // Copy primes[pos, candidateSlot - 1) up the array by 1 position
-            for (index <- candidateSlot to pos + 1 by -1) {
-               primes.set(index, primes.get(index - 1))
+          // Get the next available slot
+          // A local copy of the nextSlot atomic integer
+          var candidateSlot = nextSlot.get
+          // Represents the position of p in the sorted array
+          var pos = candidateSlot
+          // Represents the maximum value of the array
+          var max_prime = scala.math.max(candidate, primes.get(candidateSlot - 1))
+          do {
+            candidateSlot = nextSlot.get
+            // Test where the prime candidate should go in the sorted array
+            pos = candidateSlot
+            while (primes.get(pos - 1) > candidate) {
+              // The prime is smaller than the prime at position (pos - 1), so
+              // p appears further back in the array
+              pos -= 1
             }
-            // Put the candidate in the primes array at the correct place
-            primes.set(pos, candidate)
+          } while (!primes.compareAndSet(candidateSlot, 0, max_prime))
+          // Copy primes[pos, candidateSlot - 1) up the array by 1 position
+          for (index <- candidateSlot to pos + 1 by -1) {
+             primes.set(index, primes.get(index - 1))
           }
+          // Put the candidate in the primes array at the correct place
+          primes.set(pos, candidate)
           // Increment the nextSlot variable
-          if (nextSlot.getAndIncrement >= N) {
-            // If more than N primes have been found, record this last prime
-            // that this thread has found
-            finalPrimes.set(me, candidate)
-          }
+          nextSlot.getAndIncrement
         }
       }
     }
