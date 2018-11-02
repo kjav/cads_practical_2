@@ -1,0 +1,3 @@
+1. It would be insufficient to check if the other threads "current" values were divisors of the candidate, as there may be primes above the "current" values which are divisors of the candidate. By checking up to the square root of the candidate, we can guarantee that any prime above the square root which divides the candidate, would have 1 or many primes below the square root that were also divisors of the candidate, as candidate / divisor = divisor.
+
+
