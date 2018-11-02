@@ -45,10 +45,11 @@ object FasterCachedConcurrentSieve{
       // The location where the local primes array no longer matches primes
       var localPrimesIndex = 1
 
+      var candidate = 0
       // Test integers until all integers under N have been tested
       while(nextSlot.get<N) {
         // Get the next integer to test for primality
-        var candidate = next.getAndIncrement
+        candidate = next.getAndIncrement
         current.set(me, candidate)
         // Convert the candidate to a long to prevent overflow when squaring
         var l_candidate = candidate.toLong
@@ -106,7 +107,7 @@ object FasterCachedConcurrentSieve{
           // Get the next available slot
           // A local copy of the nextSlot atomic integer
           var candidateSlot = nextSlot.get
-          if ((candidateSlot < maxPrimesIndex + 5 * T) || (candidateSlot > N - 5 * T)) {
+          if ((candidateSlot < maxPrimesIndex + 3 * T) || (candidateSlot >= N - 5 * T)) {
           // Represents the position of p in the sorted array
           var pos = candidateSlot
           // Represents the maximum value of the array
@@ -132,6 +133,7 @@ object FasterCachedConcurrentSieve{
           nextSlot.getAndIncrement
         }
       }
+      println("Prime from thread " + me.toString + ": " + candidate.toString)
     }
 
     // Run T threads of comp concurrently, giving each a uid between 0 and T
